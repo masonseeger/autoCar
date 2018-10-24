@@ -120,11 +120,15 @@ def autoSpeed(sectors):
         for i in sectors:
             sectorMins[j] = min(i)
             sectorMean[j] = mean(i)
+            j+=1
         if sectorMins[0]<.5:
+            print("sector 0 min < .5")
             still()
             if sectorMins[5]>.5 and sectorMean[5]>sectorMean[1]:
+                print("rightbackturn")
                 rightBackTurn()
             elif sectorMins[1]>.5:
+                print("leftbackturn")
                 leftBackTurn()
         else:
             speed.throttle = .23
@@ -309,4 +313,8 @@ if not(br):
 '''
     Could be helpful to make a function for braking based on how fast the car is already going.
     todo: clean up prints; remove sp; make more function calls; etc
+
+    for i in sectorMin:
+        if i < 1:
+            freespace[] = 0
 '''
