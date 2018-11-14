@@ -43,15 +43,11 @@ try:
     steer.angle = aligned
     speed.throttle = 0
 
-    #trigP = 17
-    #echoP = 27
-    #ultraSonic = DistanceSensor(echoP, trigP)
 except Exception as e:
     print("something went wrong initializing...")
     print(e)
     curses.endwin()
     br = False
-
 
 def still():
     steer.angle = aligned
@@ -64,6 +60,17 @@ def setLow():
     time.sleep(.05)
     speed.throttle = 0
     time.sleep(.05)
+
+def breaking():
+    if speed.throttle>0:
+        setLow()
+        speed.throttle = -.5
+        time.sleep(.3)
+        speed.throttle = 0.001
+    elif speed.throttle<0:
+        speed.throttle = .5
+        time.sleep(.2)
+        speed.throttle = 0.001
 
 def leftBackTurn():
     #stdscr.addstr(cPos,0,"reversing left turn")
@@ -136,12 +143,10 @@ def distCheck():
 
     while True:
         distance = ultrasonic.distance
-        time.sleep(.005)
-        #print(distance)
+        time.sleep(.01)
         if distance > baseDist:
-            still()
+            #breaking()
             print("stair detected, stopping car and waiting for input from user")
-            safe = False
             break
         #print("Distance: ", distance, "cm")
 
@@ -178,21 +183,26 @@ def lidarDistanceAndSector(scan):
         return([], [], [])
 
 def autoDrive():
-    #stdscr.addstr(cPos, 0, 'Now driving autonomously')
-    #cPos+=1
     safe = True
     dCheck = Process(target = distCheck)
     dCheck.start()
     while stdscr.getch() == -1 and dCheck.is_alive():
         obstacles, sectorMins, sectorMean = lidarDistanceAndSector(next(iterator))
 
-        if obstacles:
+        if obstacles and dCheck.is_alive():
             autoSpeed(sectorMins, sectorMean)
             autoSteer(sectorMins, sectorMean)
 
-    dCheck.terminate()
-    print("terminate")
-    still()
+    if (dCheck.is_alive()):
+        print("terminate")
+        dCheck.terminate()
+        still()
+    else:
+        breaking()
+        dCheck.join()
+
+
+    #still()
 
 def lidarObsDistances(scan):
     try:
@@ -202,7 +212,6 @@ def lidarObsDistances(scan):
             deg = math.floor(j[1])
             #print("distance of " +str(dist)+"m at " + str(deg) + " degrees")
             if dist <1:
-                #print("adding obstacle")
                 obstacle.append([dist, deg])
                 freeSpace[deg//60] = 0
 

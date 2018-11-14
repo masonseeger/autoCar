@@ -14,7 +14,7 @@ def us():
         ultrasonic = DistanceSensor(echoP, trigP)
         while(True):
             print("Distance: ", ultrasonic.distance, "m")
-            time.sleep(.005)
+            time.sleep(.01)
             if (ultrasonic.distance>.2):
                 print("danger, dropoff detected")
                 break
