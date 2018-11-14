@@ -9,11 +9,14 @@ import busio
 import adafruit_pca9685
 from adafruit_motor import servo
 import curses
+from gpiozero import DistanceSensor
+from multiprocessing import Process
 
-sp = 0
 aligned = 115
 br = True
 cPos = 0
+safe = True
+baseDist = .25
 #circle = np.zeros(360)
 obstacle = []
 freeSpace = [1,1,1,1,1,1]
@@ -39,7 +42,10 @@ try:
 
     steer.angle = aligned
     speed.throttle = 0
-    sp = 0
+
+    #trigP = 17
+    #echoP = 27
+    #ultraSonic = DistanceSensor(echoP, trigP)
 except Exception as e:
     print("something went wrong initializing...")
     print(e)
@@ -51,7 +57,6 @@ def still():
     steer.angle = aligned
     speed.throttle = 0
     time.sleep(.01)
-    sp = 0
 
 #makes sure that I can travel in reverse
 def setLow():
@@ -86,16 +91,8 @@ def rightBackTurn():
     time.sleep(.2)
     still()
 
-def autoSteer(sectors):
-
+def autoSteer(sectorMins, sectorMean):
     try:
-        sectorMins = [0,0,0,0,0,0]
-        sectorMean = [0,0,0,0,0,0]
-        j = 0
-        for i in sectors:
-            sectorMins[j] = min(i)
-            sectorMean[j] = mean(i)
-            j+=1
         newAngle = (sectorMean[5] - sectorMean[1])
         if newAngle>4:
             newAngle = 4
@@ -112,15 +109,8 @@ def autoSteer(sectors):
         print(e)
         print("autoSteer")
 
-def autoSpeed(sectors):
+def autoSpeed(sectorMins, sectorMean):
     try:
-        sectorMins = [0,0,0,0,0,0]
-        sectorMean = [0,0,0,0,0,0]
-        j=0
-        for i in sectors:
-            sectorMins[j] = min(i)
-            sectorMean[j] = mean(i)
-            j+=1
         if sectorMins[0]<.5:
             print("sector 0 min < .5")
             still()
@@ -137,6 +127,23 @@ def autoSpeed(sectors):
         print('AutoSpeed')
         still()
 
+def distCheck():
+    #will prbably need to use multithreading to get this to work well.
+
+    trigP = 17
+    echoP = 27
+    ultrasonic = DistanceSensor(echoP, trigP)
+
+    while True:
+        distance = ultrasonic.distance
+        time.sleep(.005)
+        #print(distance)
+        if distance > baseDist:
+            still()
+            print("stair detected, stopping car and waiting for input from user")
+            safe = False
+            break
+        #print("Distance: ", distance, "cm")
 
 def lidarDistanceAndSector(scan):
     check = 0
@@ -155,24 +162,36 @@ def lidarDistanceAndSector(scan):
             #print(str(deg) + '   ' + str(sector))
             sectors[sector].append(dist)
         #mean the inside of the sectors
-        return(obstacles, sectors)
+        sectorMins = [100,100,100,100,100,100]
+        sectorMean = [100,100,100,100,100,100]
+        j=0
+        for i in sectors:
+            sectorMins[j] = min(i)
+            sectorMean[j] = mean(i)
+            j+=1
+        return(obstacles, sectorMins, sectorMean)
 
     except Exception as e:
         print(e)
         print("error in LidarDandS")
         #print(check)
-        return([], [])
+        return([], [], [])
 
 def autoDrive():
     #stdscr.addstr(cPos, 0, 'Now driving autonomously')
     #cPos+=1
-    keyInterrupt = stdscr.getch()
-    while keyInterrupt == -1:
-        keyInterrupt = stdscr.getch()
-        obstacles, sectors = lidarDistanceAndSector(next(iterator))
+    safe = True
+    dCheck = Process(target = distCheck)
+    dCheck.start()
+    while stdscr.getch() == -1 and dCheck.is_alive():
+        obstacles, sectorMins, sectorMean = lidarDistanceAndSector(next(iterator))
+
         if obstacles:
-            autoSpeed(sectors)
-            autoSteer(sectors)
+            autoSpeed(sectorMins, sectorMean)
+            autoSteer(sectorMins, sectorMean)
+
+    dCheck.terminate()
+    print("terminate")
     still()
 
 def lidarObsDistances(scan):
@@ -190,7 +209,8 @@ def lidarObsDistances(scan):
         #print(obstacle)
         return(obstacle, 1)
 
-    except:
+    except Exception as e:
+        print(e)
         print("error in function")
         return([], 0)
 
@@ -221,7 +241,6 @@ try:
             stdscr.addstr(cPos,0,"Decreasing velocity, throttle at " + str(speed.throttle))
             cPos+=1
             if speed.throttle >= -0.5:
-                sp-=.05
                 stdscr.addstr(cPos,0, "decrease in sp")
                 cPos+=1
                 speed.throttle -=.05
@@ -229,19 +248,16 @@ try:
             stdscr.addstr(cPos,0,"Increasing velocity, throttle at " + str(speed.throttle))
             cPos+=1
             if speed.throttle <= 0.5:
-                sp+=.05
                 speed.throttle +=.05
         elif press == 98: #b
             stdscr.addstr(cPos,0,"Braking")
             cPos+=1
             if speed.throttle>0:
-                sp = 0
                 setLow()
                 speed.throttle = -.5
                 time.sleep(.3)
                 speed.throttle = 0.001
             elif speed.throttle<0:
-                sp = 0
                 speed.throttle = .5
                 time.sleep(.2)
                 speed.throttle = 0.001
@@ -263,8 +279,15 @@ try:
             cPos+=1
             still()
 
+        elif press == 99: #c
+            p = Process(target = distCheck)
+            p.start()
+            #p.join()
+            print("pressed c")
+
         elif press == 103: #g(o into auto)
             autoDrive()
+            still()
 
         freeSpace = [1,1,1,1,1,1]
         obstacle, br = lidarObsDistances(next(iterator))
@@ -292,8 +315,8 @@ try:
 
 
 except Exception as e:
-    print(e)
     curses.endwin()
+    print(e)
     speed.throttle = 0
     time.sleep(.01)
     still()
@@ -302,7 +325,7 @@ except Exception as e:
 
 pca.deinit()
 curses.endwin()
-GPIO.cleanup()
+#GPIO.cleanup()
 lidar.stop()
 lidar.stop_motor()
 lidar.disconnect()

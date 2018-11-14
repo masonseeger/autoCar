@@ -2,37 +2,26 @@ import time
 import RPi.GPIO as GPIO
 import board
 import busio
+from gpiozero import DistanceSensor
+from multiprocessing import Process
 
+def us():
+    try:
+        #GPIO.setmode(GPIO.BOARD)
 
-try:
+        trigP = 17
+        echoP = 27
+        ultrasonic = DistanceSensor(echoP, trigP)
+        while(True):
+            print("Distance: ", ultrasonic.distance, "m")
+            time.sleep(.005)
+            if (ultrasonic.distance>.2):
+                print("danger, dropoff detected")
+                break
+    except():
+        print("good")
 
-    #GPIO.setmode(GPIO.BOARD)
-
-    trigP = 17
-    echoP = 27
-
-    GPIO.setup(trigP, GPIO.OUT)
-    GPIO.setup(echoP, GPIO.IN)
-
-    GPIO.output(trigP, GPIO.LOW)
-
-    print ("Waiting for sensor to settle")
-
-    time.sleep(2)
-    print("calculating distance...")
-
-    GPIO.output(trigP, GPIO.HIGH)
-    time.sleep(0.00001)
-    GPIO.output(trigP, GPIO.LOW)
-
-    while GPIO.input(echoP)==0:
-        pulse_start_time = time.time()
-    while GPIO.input(echoP)==1:
-        pulse_end_time = time.time()
-
-    pulse_duration = pulse_end_time - pulse_start_time
-    distance = round(pulse_duration*17150, 2)
-    print("Distance: ", distance, "cm")
-
-finally:
-    GPIO.cleanup()
+p = Process(target = us)
+p.start()
+print('hi')
+p.join()
