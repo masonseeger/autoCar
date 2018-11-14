@@ -16,7 +16,7 @@ aligned = 115
 br = True
 cPos = 0
 safe = True
-baseDist = .25
+baseDist = .18
 #circle = np.zeros(360)
 obstacle = []
 freeSpace = [1,1,1,1,1,1]
@@ -141,11 +141,11 @@ def distCheck():
     echoP = 27
     ultrasonic = DistanceSensor(echoP, trigP)
 
-    while True:
+    while stdscr.getch()==-1:
         distance = ultrasonic.distance
         time.sleep(.01)
+        print(distance)
         if distance > baseDist:
-            #breaking()
             print("stair detected, stopping car and waiting for input from user")
             break
         #print("Distance: ", distance, "cm")
@@ -182,25 +182,21 @@ def lidarDistanceAndSector(scan):
         #print(check)
         return([], [], [])
 
-def autoDrive():
-    safe = True
-    dCheck = Process(target = distCheck)
-    dCheck.start()
-    while stdscr.getch() == -1 and dCheck.is_alive():
+def SteernSpeed():
+    while True:
         obstacles, sectorMins, sectorMean = lidarDistanceAndSector(next(iterator))
 
-        if obstacles and dCheck.is_alive():
+        if obstacles:
             autoSpeed(sectorMins, sectorMean)
             autoSteer(sectorMins, sectorMean)
 
-    if (dCheck.is_alive()):
-        print("terminate")
-        dCheck.terminate()
-        still()
-    else:
-        breaking()
-        dCheck.join()
-
+def autoDrive():
+    safe = True
+    drive = Process(target = SteernSpeed)
+    drive.start()
+    distCheck()
+    drive.terminate()
+    breaking()
 
     #still()
 
@@ -300,15 +296,15 @@ try:
 
         freeSpace = [1,1,1,1,1,1]
         obstacle, br = lidarObsDistances(next(iterator))
-        #if obstacle:
-            #j = 0
-            #for i in freeSpace:
-                #stdscr.addstr(cPos,0, "Watch Out! Obstacle in Sector " + str(i))
-                #cPos+=1
-                #if cPos>30:
-                #    stdscr.clear()
-                #    cPos = 0
-                #j+=1
+        if obstacle:
+            j = 0
+            for i in freeSpace:
+                stdscr.addstr(cPos,0, "Watch Out! Obstacle in Sector " + str(i))
+                cPos+=1
+                if cPos>30:
+                    stdscr.clear()
+                    cPos = 0
+                j+=1
         #stdscr.addstr(cPos, 0 , "obs count: " + str(len(obstacle)) + ' ' + str(bool(not(1 in freeSpace))))
         #cPos +=1
 

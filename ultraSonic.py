@@ -15,7 +15,7 @@ def us():
         while(True):
             print("Distance: ", ultrasonic.distance, "m")
             time.sleep(.01)
-            if (ultrasonic.distance>.2):
+            if (ultrasonic.distance>2):
                 print("danger, dropoff detected")
                 break
     except():
