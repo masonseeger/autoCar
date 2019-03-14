@@ -16,7 +16,7 @@ aligned = 115
 br = True
 cPos = 0
 safe = True
-baseDist = .18
+baseDist = .25
 #circle = np.zeros(360)
 obstacle = []
 freeSpace = [1,1,1,1,1,1]
@@ -26,13 +26,17 @@ curses.noecho()
 curses.cbreak()
 stdscr.nodelay(True)
 
+#connects and initializes all of the physical components
 try:
-    lidar = RPLidar("/dev/ttyUSB0")
+    #connect to LiDAR
+    lidar = RPLidar("/dev/ttyUSB0") # may change ttyUSBX where X is 0,1,2,3
     time.sleep(1)
 
+    #connect to PCA9685 ie servo driver
     i2c = busio.I2C(board.SCL, board.SDA)
     pca = adafruit_pca9685.PCA9685(i2c)
 
+    #sets the motor and servo channel on servo driver
     speed_channel = pca.channels[4]
     steer_channel = pca.channels[5]
     pca.frequency = 60
@@ -49,6 +53,7 @@ except Exception as e:
     curses.endwin()
     br = False
 
+#used to stop all motion
 def still():
     steer.angle = aligned
     speed.throttle = 0
@@ -128,7 +133,7 @@ def autoSpeed(sectorMins, sectorMean):
                 print("leftbackturn")
                 leftBackTurn()
         else:
-            speed.throttle = .23
+            speed.throttle = .30
     except Exception as e:
         print(e)
         print('AutoSpeed')
@@ -337,12 +342,3 @@ lidar.disconnect()
 
 if not(br):
     print('hi')
-
-'''
-    Could be helpful to make a function for braking based on how fast the car is already going.
-    todo: clean up prints; remove sp; make more function calls; etc
-
-    for i in sectorMin:
-        if i < 1:
-            freespace[] = 0
-'''
